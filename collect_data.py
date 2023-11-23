@@ -13,6 +13,8 @@ decim = 1
 n_fft = 512 
 hop_length = n_fft // 4  
 sampling_audio = 16000
+sampling_meg = 1000
+freq_cut = 30
 
 
 def get_bids_raw(meg_path, subject, session, task):
@@ -85,6 +87,24 @@ def get_meg_spectrogram(data_tensor):
     return spectrograms_tensor
 
 
+def get_meg_spectrogram_ranged(data_tensor, f_min, f_max):
+    data_np = data_tensor.numpy()
+    n_frames = (1 + (data_np.shape[2] - n_fft) // hop_length) + n_fft // hop_length
+    n_freq_bins = n_fft // 2 + 1
+    freqs = np.linspace(0, sampling_meg // 2, n_freq_bins)
+    f_min_idx = np.searchsorted(freqs, f_min)
+    f_max_idx = np.searchsorted(freqs, f_max, side='right')
+    selected_bins = f_max_idx - f_min_idx
+    spectrograms = np.zeros((data_np.shape[0], data_np.shape[1], selected_bins, n_frames))
+    for i in range(data_np.shape[0]): 
+        for j in range(data_np.shape[1]): 
+            d = librosa.stft(data_np[i, j], n_fft=n_fft, hop_length=hop_length)
+            db_spectrogram = librosa.amplitude_to_db(np.abs(d), ref=np.max)
+            spectrograms[i, j] = db_spectrogram[f_min_idx:f_max_idx]
+    spectrograms_tensor = torch.from_numpy(spectrograms)
+    return spectrograms_tensor
+
+
 def get_audio_spectrogram(audio_path, epochs):
     data_audio_chunks = []
     n_frames = (1 + ((sampling_audio * duration) - n_fft) // hop_length) + n_fft // hop_length
@@ -105,10 +125,29 @@ def get_audio_spectrogram(audio_path, epochs):
 def plot_spectrogram(encode_spect, sr, sample, channel):
     plt.figure(figsize=(10, 4))
     if (len(encode_spect.shape) == 4):
-        librosa.display.specshow(encode_spect[sample][channel].numpy(), 
-                                 sr=sr, n_fft=n_fft, hop_length=hop_length, 
-                                 x_axis='time', y_axis='log')
-        plt.title('MEG Spectrogram')
+        time_extent = np.linspace(0, 3.21, encode_spect.shape[1])
+        encode_spect =  encode_spect[sample][channel].numpy()
+        if (encode_spect.shape[0] != n_fft // 2 + 1): 
+            freq_extent = np.linspace(0, freq_cut, encode_spect.shape[0])
+            plt.imshow(encode_spect, aspect='auto', origin='lower', 
+                        extent=[time_extent.min(), time_extent.max(), freq_extent.min(), freq_extent.max()])
+            plt.colorbar(format='%+2.0f dB')
+            plt.xlabel('Time (s)')
+            plt.ylabel('Frequency (Hz)')
+            plt.title(f'MEG Spectrogram (Sample {sample}, Channel {channel})')
+        else:    
+            freq_extent = np.linspace(0, n_fft, encode_spect.shape[0])
+            plt.imshow(encode_spect, aspect='auto', origin='lower', 
+                        extent=[time_extent.min(), time_extent.max(), freq_extent.min(), freq_extent.max()])
+            plt.colorbar(format='%+2.0f dB')
+            plt.xlabel('Time (s)')
+            plt.ylabel('Frequency (Hz)')
+            plt.title(f'MEG Spectrogram (Sample {sample}, Channel {channel})')
+            plt.figure(figsize=(10, 4))
+            librosa.display.specshow(encode_spect, 
+                                    sr=sr, n_fft=n_fft, hop_length=hop_length, 
+                                    x_axis='time', y_axis='log')
+            plt.title('MEG Spectrogram')
     else:
         librosa.display.specshow(encode_spect[sample].numpy(), 
                                  sr=sr, n_fft=n_fft, hop_length=hop_length, 
