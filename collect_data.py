@@ -16,6 +16,14 @@ sampling_audio = 16000
 sampling_meg = 1000
 freq_cut = 30
 
+meg_path = '/data01/data/MEG'
+session = ['0', '1']
+task = ['0', '1', '2', '3']
+lw1 = ['0.0', '1.0', '2.0', '3.0']
+cable_spool_fort = ['0.0', '1.0', '2.0', '3.0', '4.0', '5.0']
+easy_money = ['0.0', '1.0', '2.0', '3.0', '4.0', '5.0', '6.0', '7.0']
+the_black_willow = ['0.0', '1.0', '2.0', '3.0', '4.0', '5.0', '6.0', '7.0', '8.0', '9.0', '10.0', '11.0']
+
 
 def get_bids_raw(meg_path, subject, session, task):
     bids_path = mne_bids.BIDSPath(
@@ -44,7 +52,7 @@ def get_meg_from_raw_epochs(epochs):
     return tensor_meg
 
 
-def get_epochs(raw, sound_id):
+def get_epochs(raw, story_uid, sound_id):
     meta = list()
     for annot in raw.annotations:
         d = eval(annot.pop("description"))
@@ -54,7 +62,10 @@ def get_epochs(raw, sound_id):
         meta.append(d)
     meta = pd.DataFrame(meta)
     meta["intercept"] = 1.0
-    meta=meta[(meta["kind"]=="word") & (meta["sound_id"]==sound_id)]  
+    meta=meta[(meta["kind"]=="word") & (meta["story_uid"]==story_uid) & 
+              (meta["sound_id"]==sound_id)]  
+    if meta.empty:
+        raise ValueError(f"No matching meta entries found for story_uid: {story_uid} and sound_id: {sound_id}")
     # events/epochs
     events = np.c_[meta.onset * raw.info["sfreq"], np.ones((len(meta), 2))].astype(int)
     epochs = mne.Epochs(
@@ -156,6 +167,12 @@ def plot_spectrogram(encode_spect, sr, sample, channel):
     plt.colorbar(format='%+2.0f dB')
     plt.tight_layout()
     plt.show()
+
+
+def save_data(data, flag, patient, session, task, audio_name, audio_snip):
+    save_path = meg_path + '/collect_data/' + flag + '/' + patient + '_' + session + \
+                '_' + task + '_' + audio_name + '_' + audio_snip + '.pt' 
+    torch.save(data, save_path)
     
 
 
