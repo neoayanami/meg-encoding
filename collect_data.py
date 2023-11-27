@@ -16,9 +16,17 @@ sampling_audio = 16000
 sampling_meg = 1000
 freq_cut = 30
 
+'''
+ I task si riferiscono alle 4 storie:
+ --> task 0: lw1
+ --> task 1: cable_spool_fort
+ --> task 2: easy_money
+ --> task 3: the_black_willow
+'''
+
 meg_path = '/data01/data/MEG'
 session = ['0', '1']
-task = ['0', '1', '2', '3']
+task = {'lw1': 0.0, 'cable_spool_fort': 1.0, 'easy_money': 2.0, 'the_black_willow': 3.0}
 lw1 = ['0.0', '1.0', '2.0', '3.0']
 cable_spool_fort = ['0.0', '1.0', '2.0', '3.0', '4.0', '5.0']
 easy_money = ['0.0', '1.0', '2.0', '3.0', '4.0', '5.0', '6.0', '7.0']
@@ -64,8 +72,9 @@ def get_epochs(raw, story_uid, sound_id):
     meta["intercept"] = 1.0
     meta=meta[(meta["kind"]=="word") & (meta["story_uid"]==story_uid) & 
               (meta["sound_id"]==sound_id)]  
-    if meta.empty:
-        raise ValueError(f"No matching meta entries found for story_uid: {story_uid} and sound_id: {sound_id}")
+    # if meta.empty:
+        # raise ValueError(f"No matching meta entries found for story_uid: {story_uid} and sound_id: {sound_id}")
+
     # events/epochs
     events = np.c_[meta.onset * raw.info["sfreq"], np.ones((len(meta), 2))].astype(int)
     epochs = mne.Epochs(
@@ -134,12 +143,12 @@ def get_audio_spectrogram(audio_path, epochs):
 
 
 def plot_spectrogram(encode_spect, sr, sample, channel):
-    plt.figure(figsize=(10, 4))
     if (len(encode_spect.shape) == 4):
         time_extent = np.linspace(0, 3.21, encode_spect.shape[1])
         encode_spect =  encode_spect[sample][channel].numpy()
         if (encode_spect.shape[0] != n_fft // 2 + 1): 
             freq_extent = np.linspace(0, freq_cut, encode_spect.shape[0])
+            plt.figure(figsize=(10, 4))
             plt.imshow(encode_spect, aspect='auto', origin='lower', 
                         extent=[time_extent.min(), time_extent.max(), freq_extent.min(), freq_extent.max()])
             plt.colorbar(format='%+2.0f dB')
