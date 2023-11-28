@@ -25,6 +25,7 @@ freq_cut = 30
 '''
 
 meg_path = '/data01/data/MEG'
+patient = ['01', '02', '03', '04', '05', '06', '07', '08', '09', '10', '11']
 session = ['0', '1']
 task = {'lw1': 0.0, 'cable_spool_fort': 1.0, 'easy_money': 2.0, 'the_black_willow': 3.0}
 lw1 = ['0.0', '1.0', '2.0', '3.0']
@@ -179,9 +180,14 @@ def plot_spectrogram(encode_spect, sr, sample, channel):
 
 
 def save_data(data, flag, patient, session, task, audio_name, audio_snip):
-    save_path = meg_path + '/collect_data/' + flag + '/' + patient + '_' + session + \
-                '_' + task + '_' + audio_name + '_' + audio_snip + '.pt' 
-    torch.save(data, save_path)
+    save_dir = os.path.join(meg_path, 'collect_data', flag)
+    save_path = os.path.join(save_dir, f'{patient}_{session}_{task}_{audio_name}_{audio_snip}.pt')
+    if not os.path.isdir(save_dir):
+        os.makedirs(save_dir)
+    if not os.path.exists(save_path):
+        torch.save(data, save_path)
+    else: 
+        print(f"File {save_path} already exists.")
     
 
 
