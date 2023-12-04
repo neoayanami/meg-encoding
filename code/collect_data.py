@@ -15,6 +15,7 @@ hop_length = n_fft // 4
 sampling_audio = 16000
 sampling_meg = 1000
 freq_cut = 30
+num_channel = 208     
 
 '''
  I task si riferiscono alle 4 storie:
