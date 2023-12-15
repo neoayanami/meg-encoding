@@ -44,7 +44,7 @@ def get_bids_raw(meg_path, subject, session, task):
         root = meg_path,
     )
     try:
-        raw = mne_bids.read_raw_bids(bids_path)
+        raw = mne_bids.read_raw_bids(bids_path, verbose=False)
         raw.load_data().filter(0.5, 30.0, n_jobs=1) 
         raw = raw.pick_types(
             meg=True, misc=False, eeg=False, eog=False, ecg=False
