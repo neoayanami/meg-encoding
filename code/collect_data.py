@@ -144,6 +144,27 @@ def get_audio_spectrogram(audio_path, epochs):
     return audio_tensor
 
 
+def get_audio_mel_spectrogram(audio_path, epochs, n_mels=128):
+    data_audio_chunks = []
+    n_frames = (1 + ((sampling_audio * duration) - n_fft) // hop_length) + n_fft // hop_length
+    epoch_spectr = get_meg_from_raw_epochs(epochs)
+    for i in range(epoch_spectr.shape[0]):
+        start = epochs[i]._metadata["start"].item()
+        y, sr = librosa.load(audio_path, sr=sampling_audio, offset=start, duration=duration) 
+        # extract Mel spectrogram
+        mel_spectrogram = librosa.feature.melspectrogram(y=y, sr=sr, n_fft=n_fft, 
+                                                         hop_length=hop_length, n_mels=n_mels)
+        mel_spectrogram_db = librosa.amplitude_to_db(mel_spectrogram, ref=np.max)
+        if (mel_spectrogram_db.shape[1] < n_frames):
+            # Make padding
+            pad_width = n_frames - mel_spectrogram_db.shape[1]
+            mel_spectrogram_db = np.pad(mel_spectrogram_db, ((0, 0), (0, pad_width)), mode='constant', constant_values=0)
+        
+        data_audio_chunks.append(mel_spectrogram_db)
+    audio_tensor = torch.tensor(data_audio_chunks)
+    return audio_tensor
+
+
 def plot_spectrogram(encode_spect, sr, sample, channel):
     if (len(encode_spect.shape) == 4):
         time_extent = np.linspace(0, 3.21, encode_spect.shape[1])
