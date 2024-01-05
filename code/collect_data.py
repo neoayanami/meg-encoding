@@ -210,6 +210,35 @@ def save_data(data, flag, patient, session, task, audio_name, audio_snip):
         torch.save(data, save_path)
     else: 
         print(f"File {save_path} already exists.")
+
+
+def split_tensor(tensor, train_ratio=0.7, val_ratio=0.1):
+    total_samples = tensor.size(0)
+    train_size = int(total_samples * train_ratio)
+    val_size = int(total_samples * val_ratio)
+    train_tensor = tensor[:train_size]
+    val_tensor = tensor[train_size:train_size + val_size]
+    test_tensor = tensor[train_size + val_size:]
+    return train_tensor, val_tensor, test_tensor
+
+
+def get_splitted_tensor(file_list, path):
+    tensor_list_train = []
+    tensor_list_valid = []
+    tensor_list_test = []
+    for file_name in file_list:
+        file_path = os.path.join(path, file_name)
+        tensor = torch.load(file_path)
+        train_tensor, val_tensor, test_tensor = split_tensor(tensor)
+        tensor_list_train.append(train_tensor)
+        tensor_list_valid.append(val_tensor)
+        tensor_list_test.append(test_tensor)
+    tensor_train = torch.cat(tensor_list_train, dim=0)
+    tensor_valid = torch.cat(tensor_list_valid, dim=0)
+    tensor_test = torch.cat(tensor_list_test, dim=0)
+    return tensor_train, tensor_valid, tensor_test
+
+
     
 
 
