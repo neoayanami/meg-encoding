@@ -1,0 +1,113 @@
+import os
+import mne
+import librosa
+import numpy as np
+import matplotlib.pyplot as plt
+import torch 
+from sklearn.metrics import mean_squared_error, mean_absolute_error, r2_score
+from scipy.stats import entropy
+from collect_data import num_channel
+
+
+def get_correlation(meg_tensor_test, pred_meg_y):
+    real_target = []
+    for channel in range(num_channel):
+        y_test = meg_tensor_test[:, channel, :, :].reshape(meg_tensor_test.shape[0], -1)
+        real_target.append(y_test)
+    pred_meg_y = pred_meg_y.permute(1, 0, 2)
+    real_target = torch.tensor(np.array(real_target))
+    real_target = real_target.permute(1, 0, 2)
+    correlations = np.array([np.corrcoef(real_target[:,i], pred_meg_y[:,i])[0, 1] for i in range(num_channel)])
+    return pred_meg_y, real_target, correlations
+
+
+def get_topomap(raw, correlations):
+    meg_indices = mne.pick_types(raw.info, meg=True)
+    meg_channel_positions = np.array([raw.info['chs'][i]['loc'][:2] for i in meg_indices])
+    print('meg_channel_positions.shape: ', meg_channel_positions.shape)
+
+    correlations = np.array(correlations).reshape(-1)
+    print('correlations.shape: ', correlations.shape)
+    fig, ax = plt.subplots()
+    topomap = mne.viz.plot_topomap(correlations, meg_channel_positions, ch_type='meg',
+                                names=raw.info['ch_names'], sphere=0.13,
+                                image_interp='cubic', extrapolate='local',
+                                border='mean', size=8.5, cmap='RdBu_r', axes=ax, show=False)
+    cbar = plt.colorbar(topomap[0], ax=ax, fraction=0.02, pad=0.1)
+    cbar.set_label('Correlation')
+    fig.set_size_inches(10, 8)  
+    plt.show()
+
+
+def get_pixel_corr(real_target, pred_meg_y):
+    real_target_reshaped = real_target.view(real_target.shape[0], real_target.shape[1], -1).cpu().numpy()
+    pred_meg_y_reshaped = pred_meg_y.view(pred_meg_y.shape[0], pred_meg_y.shape[1], -1).cpu().numpy()
+    pixel_corr = np.array([
+            np.corrcoef(real_target_reshaped[:, i, j], pred_meg_y_reshaped[:, i, j])[0, 1]
+            for i in range(num_channel)
+            for j in range(real_target_reshaped.shape[2])
+            ])
+    pixel_corr = pixel_corr.reshape(num_channel, real_target_reshaped.shape[-1])
+    return pixel_corr
+
+
+def kld_compute(q: torch.Tensor, p_prior: torch.Tensor) -> torch.Tensor:
+    """
+    Computes the Kullback-Leibler Divergence (KLD) loss.
+    Args:
+        q (Tensor): The approximate posterior probability distribution.
+        p_prior (Tensor): The prior probability distribution.
+    Returns:
+        Tensor: The KLD loss.
+    """
+    log_q = torch.log(q + 1e-20)
+    kld = (torch.sum(q * (log_q - torch.log(p_prior + 1e-20)), dim=-1)).sum()
+    return kld
+
+
+def bands_metrics(real_target, pred_meg_y, freq_bands):
+    metrics_by_band = {}
+    corr_matrix_by_hand = {}
+
+    for band_name, band_range in freq_bands.items():
+        band_corr_values = []
+        
+        for i in range(num_channel):
+            real_band_data = real_target[:, :, band_range[0]:band_range[1], :]
+            pred_band_data = pred_meg_y[:, :, band_range[0]:band_range[1], :]
+
+            real_band_data = real_band_data.reshape(real_band_data.shape[0], real_band_data.shape[1], -1)
+            pred_band_data = pred_band_data.reshape(pred_band_data.shape[0], pred_band_data.shape[1], -1)
+
+            pearson_corr = np.corrcoef(real_band_data[:,i], pred_band_data[:,i])[0, 1]
+            band_corr_values.append(pearson_corr)
+            r2 = r2_score(real_band_data[:,i], pred_band_data[:,i])
+            mse = mean_squared_error(real_band_data[:,i], pred_band_data[:,i])
+            mae = mean_absolute_error(real_band_data[:,i], pred_band_data[:,i])
+
+            metrics_by_band.setdefault(band_name, []).append({
+                'channel': i,
+                'pearson_corr': pearson_corr,
+                'r2': r2,
+                'mse': mse,
+                'mae': mae,
+            })
+
+        corr_matrix_by_hand.setdefault(band_name, []).append({
+            'corr_matrix': band_corr_values
+        })
+
+    return metrics_by_band, corr_matrix_by_hand
+
+
+def get_kullback(pred_meg_y, real_target):
+    fig, axs = plt.subplots(1, 2, sharey=True, tight_layout=True)
+    N_pred, bins_pred, patches_pred = axs[0].hist(pred_meg_y[202, 0], bins=16, density=True)
+    N_real, bins_real, patches_real = axs[1].hist(real_target[202, 0], bins=16, density=True)
+    mean_pred = np.mean(N_pred, axis=0)
+    mean_real = np.mean(N_real, axis=0)
+    kl_lib = entropy(N_real + 1e-20, qk=N_pred + 1e-20, axis=-1).sum()
+    kl_mean = entropy(mean_real, qk=mean_pred)
+    kl_div = kld_compute(torch.from_numpy(N_real), torch.from_numpy(N_pred))
+    return kl_lib, kl_mean, kl_div
+
