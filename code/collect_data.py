@@ -138,29 +138,39 @@ def get_audio_spectrogram(audio_path, epochs):
         if (y_db.shape[1] < n_frames):   
             # make padding         
             pad_width = n_frames - y_db.shape[1]
-            y_db = np.pad(y_db, ((0, 0), (0, pad_width)), mode='constant', constant_values=0)
+            y_db = np.pad(y_db, ((0, 0), (0, pad_width)), mode='constant', constant_values=-80)
         data_audio_chunks.append(y_db)
     audio_tensor = torch.tensor(data_audio_chunks)
     return audio_tensor
 
 
-def get_audio_mel_spectrogram(audio_path, epochs, n_mels=128):
+def get_audio_deep_spectrogram(audio_path, epochs, set_extraction='mel', n_mels=128, n_mfcc=40):
     data_audio_chunks = []
     n_frames = (1 + ((sampling_audio * duration) - n_fft) // hop_length) + n_fft // hop_length
     epoch_spectr = get_meg_from_raw_epochs(epochs)
     for i in range(epoch_spectr.shape[0]):
         start = epochs[i]._metadata["start"].item()
         y, sr = librosa.load(audio_path, sr=sampling_audio, offset=start, duration=duration) 
-        # extract Mel spectrogram
-        mel_spectrogram = librosa.feature.melspectrogram(y=y, sr=sr, n_fft=n_fft, 
-                                                         hop_length=hop_length, n_mels=n_mels)
-        mel_spectrogram_db = librosa.amplitude_to_db(mel_spectrogram, ref=np.max)
-        if (mel_spectrogram_db.shape[1] < n_frames):
-            # Make padding
-            pad_width = n_frames - mel_spectrogram_db.shape[1]
-            mel_spectrogram_db = np.pad(mel_spectrogram_db, ((0, 0), (0, pad_width)), mode='constant', constant_values=0)
+        if set_extraction == 'mel':
+            # extract MEL spectrogram
+            mel_spectrogram = librosa.feature.melspectrogram(y=y, sr=sr, n_fft=n_fft, 
+                                                            hop_length=hop_length, n_mels=n_mels)
+            spectrogram_db = librosa.amplitude_to_db(mel_spectrogram, ref=np.max)
+            if (spectrogram_db.shape[1] < n_frames):
+                # Make padding
+                pad_width = n_frames - spectrogram_db.shape[1]
+                spectrogram_db = np.pad(spectrogram_db, ((0, 0), (0, pad_width)), mode='constant', constant_values=-80)
+        else:
+            # extract MFCC spectrogram
+            mfcc_spectrogram = librosa.feature.mfcc(y=y, sr=sr, n_mfcc=n_mfcc, n_fft=n_fft, 
+                                                        hop_length=hop_length)
+            spectrogram_db = mfcc_spectrogram
+            if (spectrogram_db.shape[1] < n_frames):
+                # Make padding
+                pad_width = n_frames - spectrogram_db.shape[1]
+                spectrogram_db = np.pad(spectrogram_db, ((0, 0), (0, pad_width)), mode='constant', constant_values=0)
         
-        data_audio_chunks.append(mel_spectrogram_db)
+        data_audio_chunks.append(spectrogram_db)
     audio_tensor = torch.tensor(data_audio_chunks)
     return audio_tensor
 
