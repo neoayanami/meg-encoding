@@ -7,6 +7,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import torch 
 
+
 shift_value = 1e13
 duration = 3   # seconds
 decim = 1
@@ -247,6 +248,29 @@ def get_splitted_tensor(file_list, path):
     tensor_valid = torch.cat(tensor_list_valid, dim=0)
     tensor_test = torch.cat(tensor_list_test, dim=0)
     return tensor_train, tensor_valid, tensor_test
+
+
+# normalizzazione 1
+def normalize_mm(data):
+    normalized_data = torch.zeros(data.shape)
+    for i in range(data.shape[0]):
+        data_i = data[i, :]
+        min_value = torch.min(data_i)
+        max_value = torch.max(data_i)
+        normalized_data[i, :] = (data_i - min_value) / (max_value - min_value)
+    return normalized_data
+
+
+# normalizzazione 2
+def normalize_ss(data, epsilon=1e-10):
+    normalized_data = torch.zeros(data.shape)
+    for i in range(data.shape[0]):
+        data_i = data[i]
+        mean = data_i.mean(dim=0)
+        std = data_i.std(dim=0)
+        std = torch.where(std < epsilon, torch.tensor(1.0), std)
+        normalized_data[i] = (data_i - mean) / std
+    return normalized_data
 
 
     
