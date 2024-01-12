@@ -6,6 +6,7 @@ import librosa
 import numpy as np
 import matplotlib.pyplot as plt
 import torch 
+from tqdm import tqdm
 
 
 shift_value = 1e13
@@ -85,7 +86,7 @@ def get_epochs(raw, story_uid, sound_id):
         events,
         tmin=-0.200,
         tmax=duration,      # time_window hyperparam
-        decim=decim,        # how many points define the temporal window
+        decim=decim,        # how many points define the temporal window --> 3 s * 1000 sr / 1 tp 
         baseline=(-0.2, 0.0),
         metadata=meta,
         preload=True,
@@ -250,27 +251,23 @@ def get_splitted_tensor(file_list, path):
     return tensor_train, tensor_valid, tensor_test
 
 
-# normalizzazione 1
-def normalize_mm(data):
-    normalized_data = torch.zeros(data.shape)
-    for i in range(data.shape[0]):
-        data_i = data[i, :]
-        min_value = torch.min(data_i)
-        max_value = torch.max(data_i)
-        normalized_data[i, :] = (data_i - min_value) / (max_value - min_value)
-    return normalized_data
+def build_phrase_dataset(X, y, context_length=20, movement=2):     # maybe movement = 2
+    """
+    Builds a dataset for training a machine learning model.
 
+    Parameters:
+        X (array-like): The input data.
+        y (array-like): The target data.
+        context_length (int, optional): The length of the input sequences. Defaults to 20.
+        movement (int, optional): The step size for creating overlapping sequences. Defaults to 2.
 
-# normalizzazione 2
-def normalize_ss(data, epsilon=1e-10):
-    normalized_data = torch.zeros(data.shape)
-    for i in range(data.shape[0]):
-        data_i = data[i]
-        mean = data_i.mean(dim=0)
-        std = data_i.std(dim=0)
-        std = torch.where(std < epsilon, torch.tensor(1.0), std)
-        normalized_data[i] = (data_i - mean) / std
-    return normalized_data
+    Returns:
+        tuple: A tuple containing the input sequences and output sentences as NumPy arrays.
+    """
+    indices = np.arange(context_length, len(y), movement)
+    y_sent = [' '.join(y[i - context_length:i]) for i in tqdm(indices)]  # add 5 words after
+    X_sent = [X[i - context_length:i] for i in tqdm(indices)]
+    return np.stack(X_sent), np.stack(y_sent)
 
 
     
