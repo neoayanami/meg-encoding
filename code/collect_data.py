@@ -146,7 +146,7 @@ def get_audio_spectrogram(audio_path, epochs):
     return audio_tensor
 
 
-def get_audio_deep_spectrogram(audio_path, epochs, set_extraction='mel', n_mels=128, n_mfcc=40):
+def get_audio_deep_spectrogram(audio_path, epochs, set_extraction='mel', n_mels=128, n_mfcc=40):   # TODO: n_mels = 256 
     data_audio_chunks = []
     n_frames = (1 + ((sampling_audio * duration) - n_fft) // hop_length) + n_fft // hop_length
     epoch_spectr = get_meg_from_raw_epochs(epochs)
@@ -251,7 +251,7 @@ def get_splitted_tensor(file_list, path):
     return tensor_train, tensor_valid, tensor_test
 
 
-def build_phrase_dataset(X, y, context_length=20, movement=2):     # maybe movement = 2
+def build_phrase_dataset(X, y, context_length=20, movement=2):     # TODO: maybe movement = 1
     """
     Builds a dataset for training a machine learning model.
 
@@ -265,7 +265,7 @@ def build_phrase_dataset(X, y, context_length=20, movement=2):     # maybe movem
         tuple: A tuple containing the input sequences and output sentences as NumPy arrays.
     """
     indices = np.arange(context_length, len(y), movement)
-    y_sent = [' '.join(y[i - context_length:i]) for i in tqdm(indices)]  # add 5 words after
+    y_sent = [' '.join(y[i - context_length:i]) for i in tqdm(indices)]  # TODO: add 5 words after
     X_sent = [X[i - context_length:i] for i in tqdm(indices)]
     return np.stack(X_sent), np.stack(y_sent)
 
