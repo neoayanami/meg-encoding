@@ -251,7 +251,7 @@ def get_splitted_tensor(file_list, path):
     return tensor_train, tensor_valid, tensor_test
 
 
-def build_phrase_dataset(X, y, context_length=20, movement=2):     # TODO: maybe movement = 1
+def build_phrase_dataset(X, y, context_length=20, movement=1, words_after=5):   
     """
     Builds a dataset for training a machine learning model.
 
@@ -259,14 +259,36 @@ def build_phrase_dataset(X, y, context_length=20, movement=2):     # TODO: maybe
         X (array-like): The input data.
         y (array-like): The target data.
         context_length (int, optional): The length of the input sequences. Defaults to 20.
-        movement (int, optional): The step size for creating overlapping sequences. Defaults to 2.
+        movement (int, optional): The step size for creating overlapping sequences. Defaults to 1.
+        words_after (int, optional): The number of words to include after the context length. Defaults to 5.
 
     Returns:
         tuple: A tuple containing the input sequences and output sentences as NumPy arrays.
     """
+
+    X_sent = []
+    y_sent = []
+    
     indices = np.arange(context_length, len(y), movement)
-    y_sent = [' '.join(y[i - context_length:i]) for i in tqdm(indices)]  # TODO: add 5 words after
-    X_sent = [X[i - context_length:i] for i in tqdm(indices)]
+    for i in tqdm(indices):
+        sentence = ' '.join(y[i-context_length:i+words_after])
+        y_sent.append(sentence)
+        # X_sent.append(X[i-context_length:i+words_after])
+        X_sent.append(X[i])
+
+    for j in range(len(X_sent)):
+        matrix = X_sent[j]
+        original_shape = matrix.shape
+        target_shape = (context_length+words_after, num_channel, original_shape[-1])
+        if original_shape[0] < target_shape[0]:
+            padding =  [(0, target_dim - original_dim) for target_dim, original_dim in zip(target_shape, original_shape)]
+            X_sent[j] = np.pad(matrix, padding, mode='constant', constant_values=0)
+
+    for z in range(len(y_sent)):
+        sentence = y_sent[z]
+        if len(sentence) < (context_length+words_after):
+            y_sent[z] += [''] * (context_length+words_after - len(sentence))
+
     return np.stack(X_sent), np.stack(y_sent)
 
 
