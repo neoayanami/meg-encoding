@@ -100,14 +100,26 @@ def bands_metrics(real_target, pred_meg_y, freq_bands):
     return metrics_by_band, corr_matrix_by_hand
 
 
-def get_kullback(pred_meg_y, real_target):
-    fig, axs = plt.subplots(1, 2, sharey=True, tight_layout=True)
-    N_pred, bins_pred, patches_pred = axs[0].hist(pred_meg_y[202, 0], bins=16, density=True)
-    N_real, bins_real, patches_real = axs[1].hist(real_target[202, 0], bins=16, density=True)
-    mean_pred = np.mean(N_pred, axis=0)
-    mean_real = np.mean(N_real, axis=0)
-    kl_lib = entropy(N_real + 1e-20, qk=N_pred + 1e-20, axis=-1).sum()
-    kl_mean = entropy(mean_real, qk=mean_pred)
-    kl_div = kld_compute(torch.from_numpy(N_real), torch.from_numpy(N_pred))
-    return kl_lib, kl_mean, kl_div
+def get_kullback_vect(pred_meg_y, real_target):
+    
+    """
+    This if I want to plot: 
+        fig, axs = plt.subplots(1, 2, sharey=True, tight_layout=True)
+        N_pred, bins_pred, patches_pred = axs[0].hist(pred_meg_y[202, 0], bins=16, density=True)
+        N_real, bins_real, patches_real = axs[1].hist(real_target[202, 0], bins=16, density=True)
+    
+    """
+    kld_vector = []
+    for ch in range(num_channel):
+        single_ch_every_smp = []
+        for smp in range(real_target.shape[0]):
+            N_pred, bins_pred = np.histogram(pred_meg_y[smp, ch], bins=16, density=True)
+            N_real, bins_real = np.histogram(real_target[smp, ch], bins=16, density=True)
+            kl_div = kld_compute(torch.from_numpy(N_real), torch.from_numpy(N_pred))
+            single_ch_every_smp.append(kl_div)
+        mean_value = sum(single_ch_every_smp) / len(single_ch_every_smp)
+        kld_vector.append(mean_value)
+    kld_vector = np.array(kld_vector).reshape(-1)
+    
+    return kld_vector
 
