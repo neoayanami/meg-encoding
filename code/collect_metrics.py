@@ -21,7 +21,7 @@ def get_correlation(meg_tensor_test, pred_meg_y):
     return pred_meg_y, real_target, correlations
 
 
-def get_topomap(raw, correlations, vlim, cmap='RdBu_r'):
+def get_topomap(raw, correlations, vlim, cmap='RdBu_r', sphere=0.13, extrapolate='local', size=8.5):
     meg_indices = mne.pick_types(raw.info, meg=True)
     meg_channel_positions = np.array([raw.info['chs'][i]['loc'][:2] for i in meg_indices])
     print('meg_channel_positions.shape: ', meg_channel_positions.shape)
@@ -30,11 +30,11 @@ def get_topomap(raw, correlations, vlim, cmap='RdBu_r'):
     print('correlations.shape: ', correlations.shape)
     fig, ax = plt.subplots()
     topomap = mne.viz.plot_topomap(correlations, meg_channel_positions, ch_type='meg',
-                                names=raw.info['ch_names'], sphere=0.13,
-                                image_interp='cubic', extrapolate='local',
-                                border='mean', size=8.5, cmap=cmap, axes=ax, 
-                                vlim=vlim ,show=False)
-    cbar = plt.colorbar(topomap[0], ax=ax, fraction=0.02, pad=0.1)    # v_min e v_max
+                                names=raw.info['ch_names'], sphere=sphere,
+                                image_interp='cubic', extrapolate=extrapolate,
+                                border='mean', size=size, cmap=cmap, axes=ax, 
+                                vlim=vlim, show=False)
+    cbar = plt.colorbar(topomap[0], ax=ax, fraction=0.02, pad=0.1)   
     cbar.set_label('Correlation')
     fig.set_size_inches(10, 8)  
     plt.show()
