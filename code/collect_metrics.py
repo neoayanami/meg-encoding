@@ -68,7 +68,6 @@ def kld_compute(q: torch.Tensor, p_prior: torch.Tensor) -> torch.Tensor:
 
 def bands_metrics(real_target, pred_meg_y, freq_bands):
     metrics_by_band = {}
-    corr_matrix_by_hand = {}
 
     for band_name, band_range in freq_bands.items():
         band_corr_values = []
@@ -81,7 +80,7 @@ def bands_metrics(real_target, pred_meg_y, freq_bands):
             pred_band_data = pred_band_data.reshape(pred_band_data.shape[0], pred_band_data.shape[1], -1)
 
             pearson_corr = np.corrcoef(real_band_data[:,i], pred_band_data[:,i])[0, 1]
-            band_corr_values.append(pearson_corr)
+            modified_r2 = np.abs(pearson_corr) * pearson_corr
             r2 = r2_score(real_band_data[:,i], pred_band_data[:,i])
             mse = mean_squared_error(real_band_data[:,i], pred_band_data[:,i])
             mae = mean_absolute_error(real_band_data[:,i], pred_band_data[:,i])
@@ -89,16 +88,13 @@ def bands_metrics(real_target, pred_meg_y, freq_bands):
             metrics_by_band.setdefault(band_name, []).append({
                 'channel': i,
                 'pearson_corr': pearson_corr,
-                'r2': r2,
+                'scikit_r2': r2,
+                'modified_r2': modified_r2,
                 'mse': mse,
                 'mae': mae,
             })
 
-        corr_matrix_by_hand.setdefault(band_name, []).append({
-            'corr_matrix': band_corr_values
-        })
-
-    return metrics_by_band, corr_matrix_by_hand
+    return metrics_by_band
 
 
 def get_kullback_vect(pred_meg_y, real_target):
