@@ -84,6 +84,7 @@ def bands_metrics(real_target, pred_meg_y, freq_bands):
             r2 = r2_score(real_band_data[:,i], pred_band_data[:,i])
             mse = mean_squared_error(real_band_data[:,i], pred_band_data[:,i])
             mae = mean_absolute_error(real_band_data[:,i], pred_band_data[:,i])
+            mae_norm = mae/abs(pred_band_data[:,i].sum())
 
             metrics_by_band.setdefault(band_name, []).append({
                 'channel': i,
@@ -92,6 +93,7 @@ def bands_metrics(real_target, pred_meg_y, freq_bands):
                 'modified_r2': modified_r2,
                 'mse': mse,
                 'mae': mae,
+                'mae_norm': mae_norm,
             })
 
     return metrics_by_band
